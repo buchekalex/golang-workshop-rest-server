@@ -1,0 +1,137 @@
+run:
+  concurrency: 4
+  deadline: 1m
+  issues-exit-code: 1
+  tests: false
+
+output:
+  format: colored-line-number
+  print-issued-lines: true
+  print-linter-name: true
+
+linters:
+  disable:
+    - godox
+    - gochecknoglobals
+    - gochecknoinits
+    - lll
+    - depguard
+    - maligned
+    - stylecheck
+    - prealloc
+    - goconst
+    - structcheck
+    - whitespace
+    - nakedret
+    - dogsled
+    - unparam
+    - unconvert
+    - interfacer
+    - funlen
+  enable:
+    - gocyclo
+    - gosec
+    - govet
+    - goimports
+    - gocritic
+    - ineffassign
+    - bodyclose
+    - unused
+    - gofmt
+    - typecheck
+    - staticcheck
+    - misspell
+    - gosimple
+
+  fast: false
+
+linters-settings:
+  errcheck:
+    check-type-assertions: true
+    check-blank: true
+
+  funlen:
+    lines: 100
+    statements: 40
+
+  govet:
+    check-shadowing: false
+    # enable or disable analyzers by name
+    enable:
+      - atomicalign
+    enable-all: false
+    disable:
+      - shadow
+    disable-all: false
+
+  goimports:
+    local-prefixes: assguard,github.com/provpn
+
+  gocyclo:
+    min-complexity: 20
+
+  dupl:
+    # tokens count to trigger issue, 150 by default
+    threshold: 130
+
+  goconst:
+    min-len: 3
+    min-occurrences: 3
+
+  unused:
+    check-exported: false
+
+  unparam:
+    check-exported: false
+
+  nakedret:
+    max-func-lines: 30
+
+  gocritic:
+    # Which checks should be enabled; can't be combined with 'disabled-checks';
+    # See https://go-critic.github.io/overview#checks-overview
+    # To check which checks are enabled run `GL_DEBUG=gocritic golangci-lint run`
+    # By default list of stable checks is used.
+    enabled-checks:
+
+    # Which checks should be disabled; can't be combined with 'enabled-checks'; default is empty
+    disabled-checks:
+      - regexpMust
+
+    settings: # settings passed to gocritic
+      captLocal: # must be valid enabled check name
+        paramsOnly: true
+
+  dogsled:
+    max-blank-identifiers: 2
+
+  whitespace:
+    multi-if: false
+
+
+issues:
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - gocyclo
+        - errcheck
+        - dupl
+        - gosec
+
+    - path: internal/hmac/
+      text: "weak cryptographic primitive"
+      linters:
+        - gosec
+
+    - linters:
+        - staticcheck
+      text: "SA9003:"
+
+    - linters:
+        - lll
+      source: "^//go:generate "
+
+  exclude-use-default: false
+  max-issues-per-linter: 0
+  max-same-issues: 0
+  new: false

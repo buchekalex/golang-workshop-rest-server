@@ -1,0 +1,131 @@
+version: '3.8'
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8084:8080"
+    networks:
+      - projector
+    restart: on-failure
+    depends_on:
+      - mongodb
+      - elasticsearch
+    environment:
+      - "API_HTTP_PORT=8080"
+      - "MONGO_URI=mongodb://mongodb:27017"
+      - "APP_NAME=myapp"
+      - "APP_VERSION=0.1.0"
+      - "HTTP_PORT=8080"
+      - "LOG_LEVEL=debug"
+      - "ELASTIC_ADDRESS=http://elasticsearch:9200"
+    labels:
+      - "docker.group=docker"
+
+  mongodb:
+    image: mongo:latest
+    volumes:
+      - mongodb_data:/data/db
+    ports:
+      - "27017:27017"
+    networks:
+      - projector
+    restart: on-failure
+    labels:
+      - "docker.group=docker"
+
+  nginx:
+    image: nginx:latest
+    volumes:
+      - ./configs/nginx.conf:/etc/nginx/nginx.conf
+      - nginx_logs:/var/log/nginx
+    ports:
+      - "8088:80"
+    networks:
+      - projector
+    restart: on-failure
+    depends_on:
+      - grafana
+      - app
+    labels:
+      - "docker.group=docker"
+
+  grafana:
+    image: grafana/grafana:latest
+    networks:
+      - projector
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./configs/grafana-provisioning:/etc/grafana/provisioning
+    depends_on:
+      - influxdb
+    environment:
+      - GRAFANA_PORT=3000
+      - GRAFANA_USER=admin
+      - GRAFANA_PASSWORD=admin
+      - GRAFANA_PLUGINS_ENABLED=true
+      - GRAFANA_PLUGINS=grafana-piechart-panel
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - INFLUXDB_USER=grafana
+      - INFLUXDB_PASSWORD=grafana
+      - DS_INFLUXDB=InfluxDB
+      - GF_SERVER_ROOT_URL=http://localhost:3000/grafana
+      - GF_SERVER_SERVE_FROM_SUB_PATH=true
+    labels:
+      - "docker.group=docker"
+
+  influxdb:
+    image: influxdb:1.8
+    volumes:
+      - influxdb_data:/var/lib/influxdb
+    networks:
+      - projector
+    environment:
+      - INFLUXDB_HOST=influxdb
+      - INFLUXDB_PORT=8086
+      - INFLUXDB_DATABASE=metrics
+      - INFLUXDB_ADMIN_USER=grafana
+      - INFLUXDB_ADMIN_PASSWORD=grafana
+    labels:
+      - "docker.group=docker"
+
+  telegraf:
+    image: telegraf:latest
+    container_name: telegraf
+    entrypoint: /bin/bash -c "chmod 666 /var/run/docker.sock && /entrypoint.sh telegraf"
+    networks:
+      - projector
+    volumes:
+      - './configs/telegraf.conf:/etc/telegraf/telegraf.conf'
+      - '/var/run/docker.sock:/var/run/docker.sock'
+      - 'nginx_logs:/var/log/nginx'
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.14.0
+    container_name: elasticsearch
+    ports:
+      - "9200:9200"
+    networks:
+      - projector
+    environment:
+      - "discovery.type=single-node" # For single-node setup
+      - "cluster.name=my-elasticsearch-cluster"
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    restart: on-failure
+    labels:
+      - "docker.group=docker"
+
+volumes:
+  dockersock:
+  mongodb_data:
+  influxdb_data:
+  grafana_data:
+  nginx_logs:
+  elasticsearch_data:
+
+networks:
+  projector:
+    driver: bridge
